@@ -54,6 +54,7 @@ function appliquerProduits(rows) {
             (nom && CREPES.find(c => normaliser(c.n) === normaliser(nom)));
 
         if (existant) {
+            if (idBase) existant.dbId = idBase;
             existant.p = prix;
             if (nom) existant.n = nom;
             if (r[col.description]) existant.d = r[col.description];
@@ -62,6 +63,7 @@ function appliquerProduits(rows) {
             // Nouveau produit ajouté dans Supabase
             CREPES.push({
                 id: slug || idBase,
+                dbId: idBase,
                 n: nom,
                 d: r[col.description] || '',
                 p: prix,
@@ -77,7 +79,7 @@ try {
 } catch (e) {}
 
 // 2) Mise à jour depuis Supabase. Les pages doivent attendre "prixPrets" avant de s'afficher.
-const prixPrets = (async () => {
+const produitsPrets = (async () => {
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 4000);
@@ -106,7 +108,7 @@ const prixPrets = (async () => {
     }
 })();
 
-// Tarifs de livraison en FCFA
+// Tarifs de livraison en FCFA (valeurs de secours, remplacées par la table tarifs_livraison)
 const tarifsLivraison = {
     "Bingerville": 2500,
     "Cocody": 1500,
@@ -114,6 +116,39 @@ const tarifsLivraison = {
     "Marcory": 2000,
     "Autres": 2500
 };
+
+function appliquerTarifs(rows) {
+    if (!Array.isArray(rows)) return;
+    rows.forEach(r => {
+        const f = Number(r.frais);
+        if (r.commune && Number.isFinite(f)) tarifsLivraison[r.commune] = f;
+    });
+}
+
+try { appliquerTarifs(JSON.parse(localStorage.getItem('tarifsCache'))); } catch (e) {}
+
+const tarifsPrets = (async () => {
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 4000);
+        const r = await fetch(
+            PRIX_SB.url + '/rest/v1/tarifs_livraison?select=*',
+            {
+                headers: { apikey: PRIX_SB.key, Authorization: 'Bearer ' + PRIX_SB.key },
+                signal: ctrl.signal,
+                cache: 'no-store'
+            }
+        );
+        clearTimeout(timer);
+        if (!r.ok) return;
+        const rows = await r.json();
+        appliquerTarifs(rows);
+        try { localStorage.setItem('tarifsCache', JSON.stringify(rows)); } catch (e) {}
+    } catch (e) {}
+})();
+
+// Les pages attendent « prixPrets » : produits et tarifs de livraison chargés
+const prixPrets = Promise.all([produitsPrets, tarifsPrets]);
 
 const $ = s => document.querySelector(s);
 
