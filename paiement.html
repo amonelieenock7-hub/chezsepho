@@ -16,7 +16,7 @@ const WHATSAPP = "2250711336992";
 
 let enCours = get('commandeEnCours', null);   // commande envoyée vers Wave, en attente de confirmation
 let done = null;
-let nomClient = '', telClient = '';
+let nomClient = '', telClient = '', adresseClient = '';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const waveLien = S => 'https://pay.wave.com/m/' + WAVE_ID + '/c/ci/?amount=' + Math.round(S.T);
@@ -26,11 +26,11 @@ function messageWhatsApp(S) {
         'Commande : ' + S.numero + '\n' +
         'Nom : ' + S.nom + '\n' +
         'Téléphone : ' + S.tel + '\n' +
-        'Livraison : ' + S.commune + '\n\n' +
+        'Livraison : ' + S.commune + '\n' +
+        'Adresse : ' + S.adresse + '\n\n' +
         S.lignes.map(l => l.q + ' × ' + l.n + ' : ' + fmt(l.p * l.q)).join('\n') + '\n' +
         'Frais de livraison : ' + fmt(S.frais) + '\n\n' +
         'Total payé : ' + fmt(S.T) + '\n\n' +
-        'Mon adresse de livraison : \n\n' +
         'Merci de confirmer ma commande.';
 }
 
@@ -45,6 +45,7 @@ function draw() {
                 <span class="badge">Paiement Wave · en cours de vérification</span>
                 <div style="margin:10px 0">${list(S.lignes)}</div>
                 <div class="row"><span>Livraison · ${esc(S.commune)}</span><b>${fmt(S.frais)}</b></div>
+                <div class="row"><span>Adresse : ${esc(S.adresse)}</span></div>
                 <div class="row tot"><span>Montant réglé</span><b>${fmt(S.T)}</b></div>
                 <small>Sepho confirme votre commande sur WhatsApp dès que le paiement est vérifié.</small>
             </div>
@@ -65,12 +66,13 @@ function draw() {
                 <b>Commande · ${S.numero}</b>
                 ${list(S.lignes)}
                 <div class="row"><span>Livraison · ${esc(S.commune)}</span><b>${fmt(S.frais)}</b></div>
+                <div class="row"><span>Adresse : ${esc(S.adresse)}</span></div>
                 <div class="row tot"><span>Montant à régler</span><b>${fmt(S.T)}</b></div>
             </div>
             <button class="btn full" data-sent style="background:#25D366; color:white;">
                 J'ai payé · Envoyer ma commande à Sepho
             </button>
-            <p class="note">Le message est déjà rédigé avec votre commande. Pensez à indiquer votre adresse de livraison.</p>
+            <p class="note">Le message est déjà rédigé avec votre commande et votre adresse.</p>
             <a class="link" href="${waveLien(S)}">Payer maintenant avec Wave</a>
             <a class="link" href="#" data-cancel>Annuler et modifier ma commande</a>`;
         return;
@@ -116,6 +118,9 @@ function draw() {
         <label for="tel">Numéro de téléphone</label>
         <input id="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="+225 07 00 00 00 00" value="${esc(telClient)}">
 
+        <label for="adresse">Adresse de livraison</label>
+        <input id="adresse" type="text" autocomplete="street-address" placeholder="Quartier, rue, repère (ex : près de la pharmacie)" value="${esc(adresseClient)}">
+
         <div class="sum">
             <b>Votre commande · ${orderId()}</b>
             ${list(ls)}
@@ -132,6 +137,7 @@ function draw() {
 document.addEventListener('input', e => {
     if (e.target.id === 'nom') nomClient = e.target.value;
     if (e.target.id === 'tel') telClient = e.target.value;
+    if (e.target.id === 'adresse') adresseClient = e.target.value;
 });
 
 document.addEventListener('click', e => {
@@ -152,19 +158,20 @@ document.addEventListener('click', e => {
     if ('pay' in d) {
         const nom = ($('#nom').value || '').trim();
         const tel = ($('#tel').value || '').trim();
+        const adresse = ($('#adresse').value || '').trim();
         const err = $('#err');
         err.style.display = 'none';
 
-        if (!nom || !tel) {
-            err.textContent = 'Entrez votre nom et votre numéro de téléphone pour continuer.';
+        if (!nom || !tel || !adresse) {
+            err.textContent = 'Entrez votre nom, votre téléphone et votre adresse de livraison pour continuer.';
             err.style.display = 'block';
             return;
         }
-        nomClient = nom; telClient = tel;
+        nomClient = nom; telClient = tel; adresseClient = adresse;
 
         const frais = FEE();
         enCours = {
-            numero: orderId(), nom, tel,
+            numero: orderId(), nom, tel, adresse,
             commune: lieuLivraison(), frais,
             T: sub() + frais,
             lignes: lines().map(l => ({ n: l.n, q: l.q, p: l.p }))
