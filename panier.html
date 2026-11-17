@@ -28,7 +28,7 @@ ls.map(l=>`<div class="item">${img(l,'sm')}<div><b>${l.n}</b><br><small>${fmt(l.
 `<a class="link" href="index.html">+ Ajouter une autre crêpe</a><h2 class="h2">Comment vous régaler ?</h2>
 <div class="two">
     <button class="opt ${m==='livraison'?'on':''}" data-m="livraison">
-        <b>Livraison chez vous</b>
+        <b>Livraison via Yango</b>
         <small>30–45 min</small>
     </button>
     <button class="opt ${m==='retrait'?'on':''}" data-m="retrait">
@@ -41,11 +41,10 @@ ${m==='livraison' ? `
     <label for="commune">Choisissez votre commune</label>
     <select id="commune" data-lieu>
         <option value="">-- Sélectionner une commune --</option>
-        <option value="Bingerville" ${lieu==='Bingerville'?'selected':''}>Bingerville — 2 500 F CFA</option>
-        <option value="Cocody" ${lieu==='Cocody'?'selected':''}>Cocody — 1 500 F CFA</option>
-        <option value="Yopougon" ${lieu==='Yopougon'?'selected':''}>Yopougon — 1 500 F CFA</option>
-        <option value="Marcory" ${lieu==='Marcory'?'selected':''}>Marcory — 2 000 F CFA</option>
-        <option value="Autres" ${lieu==='Autres'?'selected':''}>Autres communes — 2 500 F CFA</option>
+        ${Object.entries(tarifsLivraison)
+            .sort((a, b) => (a[0] === 'Autres') - (b[0] === 'Autres'))
+            .map(([c, f]) => `<option value="${c}" ${lieu === c ? 'selected' : ''}>${c === 'Autres' ? 'Autres communes' : c} — ${fmt(f)}</option>`)
+            .join('')}
     </select>
 </div>
 ` : ''}
@@ -69,7 +68,7 @@ ${m==='livraison' ? `
     </div>
 </div>
 
-<button class="btn full" data-go>${m==='livraison'?'Continuer vers Wave':'Réserver mon retrait'}</button><p class="note">${m==='livraison'?'Votre adresse sera demandée après le paiement réussi.':'Aucun paiement maintenant : vous réglez au retrait.'}</p>`}
+<button class="btn full" data-go>${m==='livraison'?'Continuer vers Wave':'Réserver mon retrait'}</button><p class="note">${m==='livraison'?'Votre adresse de livraison vous sera demandée à l’étape suivante.':'Aucun paiement maintenant : vous réglez au retrait.'}</p>`}
 
 document.addEventListener('change', e => {
     if (e.target.matches('[data-lieu]')) {
