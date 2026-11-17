@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Paiement · CHEZSEPHO.</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500&display=swap">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<main id="app"></main>
+
+<script src="app.js"></script>
+
+<script>
+// À remplacer par ton identifiant marchand Wave (visible dans ton lien de paiement Wave Business)
+const WAVE_MERCHANT = "M_ci_XXXXXXXXXX";
+
+prixPrets.then(() => {
+const ls = lines();
+const commune = lieuLivraison();
+const frais = FEE();
+
+if (!ls.length) {
+    $('#app').innerHTML = empty('Paiement');
+
+} else if (mode() !== 'livraison' || frais === null) {
+    $('#app').innerHTML = `
+        ${head('Livraison')}
+        <h1 class="t">Choisissez votre commune</h1>
+        <p class="mut">
+            Retournez dans votre panier pour choisir la commune
+            et calculer les frais de livraison.
+        </p>
+        <a class="btn full" href="panier.html">Retour au panier</a>
+    `;
+
+} else {
+    const A = sub() + frais;
+
+    $('#app').innerHTML =
+        head('Paiement', '1/2') +
+
+        `<h1 class="t">Un dernier geste, puis on se régale.</h1>
+
+        <p class="mut">Vérifiez votre commande avant de payer.</p>
+
+        <div class="wave">
+            <b>Paiement par Wave</b>
+            <small>Vous serez redirigé vers Wave avec le montant déjà rempli.</small>
+
+            <div class="row"><span>Commune de livraison</span><b>${commune}</b></div>
+            <div class="row"><span>Montant des crêpes</span><b>${fmt(sub())}</b></div>
+            <div class="row"><span>Frais de livraison</span><b>${fmt(frais)}</b></div>
+            <div class="row tot"><span>Montant total à régler</span><b>${fmt(A)}</b></div>
+        </div>
+
+        <h2 class="h2">Vos informations</h2>
+
+        <label for="nom">Nom complet</label>
+        <input id="nom" type="text" autocomplete="name" placeholder="Ex : Sepho">
+
+        <label for="tel">Numéro de téléphone</label>
+        <input id="tel" type="tel" inputmode="tel" autocomplete="tel"
+               placeholder="+225 07 00 00 00 00">
+
+        <div class="sum" id="orderSummary">
+            <b>Votre commande · ${orderId()}</b>
+            ${list(ls)}
+            <div class="row"><span>Livraison · ${commune}</span><b>${fmt(frais)}</b></div>
+            <div class="row tot"><span>Total</span><b>${fmt(A)}</b></div>
+        </div>
+
+        <p id="err" class="err" role="alert"></p>
+
+        <button class="btn wavebtn full" id="pay">
+            Payer ${fmt(A)} avec Wave
+        </button>
+
+        <button class="btn full" id="showContact"
+                style="display:none; background:#25D366; color:white; margin-top:12px;">
+            J'ai payé · Envoyer ma commande à Sepho
+        </button>
+
+        <p id="paymentNotice" class="note">
+            Après le paiement sur Wave, revenez ici et envoyez votre commande à Sepho sur WhatsApp.
+        </p>
+
+        <a class="link" href="panier.html">Modifier ma commune ou ma commande</a>`;
+
+    const errorMessage = $('#err');
+    const contactButton = $('#showContact');
+    const paymentNotice = $('#paymentNotice');
+
+    $('#pay').onclick = () => {
+        const nom = $('#nom').value.trim();
+        const telephone = $('#tel').value.trim();
+
+        errorMessage.style.display = 'none';
+
+        if (!nom || !telephone) {
+            errorMessage.textContent = 'Entre ton nom et ton numéro de téléphone pour continuer.';
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        const waveUrl = 'https://pay.wave.com/m/' + WAVE_MERCHANT +
+                        '/c/ci/?amount=' + Math.round(A);
+
+        // On retient que le paiement a été lancé, pour réafficher le bouton au retour
+        try { sessionStorage.setItem('wavePaiementLance', '1'); } catch (e) {}
+
+        // Redirection dans le même onglet : sur téléphone, le lien ouvre directement l'app Wave
+        window.location.href = waveUrl;
+    };
+
+    // Au retour sur la page (après Wave), on affiche le bouton de confirmation WhatsApp
+    function afficherConfirmation() {
+        contactButton.style.display = 'block';
+        paymentNotice.textContent =
+            'Si vous avez payé sur Wave, cliquez sur le bouton vert pour confirmer votre commande.';
+    }
+
+    try {
+        if (sessionStorage.getItem('wavePaiementLance') === '1') afficherConfirmation();
+    } catch (e) {}
+
+    window.addEventListener('pageshow', () => {
+        try {
+            if (sessionStorage.getItem('wavePaiementLance') === '1') afficherConfirmation();
+        } catch (e) {}
+    });
+
+    contactButton.onclick = () => {
+        const nom = $('#nom').value.trim();
+        const telephone = $('#tel').value.trim();
+
+        const message =
+            'Bonjour Sepho ! Voici ma commande CHEZSEPHO (paiement Wave effectué).\n\n' +
+            'Nom : ' + nom + '\n' +
+            'Téléphone : ' + telephone + '\n\n' +
+            $('#orderSummary').innerText +
+            '\n\nMerci de confirmer ma commande.';
+
+        try { sessionStorage.removeItem('wavePaiementLance'); } catch (e) {}
+
+        window.open('https://wa.me/2250711336992?text=' + encodeURIComponent(message), '_blank');
+
+        $('#app').innerHTML = `
+            ${head('Commande envoyée')}
+            <h1 class="t">Merci ${nom} !</h1>
+            <p class="mut">
+                Votre commande <b>${orderId()}</b> a bien été transmise à Sepho.
+                Elle sera confirmée dès que le paiement Wave de <b>${fmt(A)}</b>
+                aura été vérifié.
+            </p>
+            <p class="note">
+                Si WhatsApp ne s'est pas ouvert, cliquez ci-dessous.
+            </p>
+            <a class="btn full" style="background:#25D366; color:white;"
+               href="https://wa.me/2250711336992?text=${encodeURIComponent(message)}">
+                Ouvrir WhatsApp
+            </a>
+            <a class="link" href="index.html">Retour à l'accueil</a>`;
+    };
+}
+});
+</script>
+
+</body>
+</html>

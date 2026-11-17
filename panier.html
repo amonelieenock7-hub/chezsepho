@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panier · CHEZSEPHO.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script src="app.js"></script>
+<script>
+function draw(){
+    const ls=lines();
+    if(!ls.length){
+        $('#app').innerHTML=empty('Mon panier');
+        return}
+const m = mode(),
+ n = count();
+const lieu = lieuLivraison();
+const frais = FEE();
+$('#app').innerHTML=head('Mon panier',n+' crêpe'+(n>1?'s':''))+`<h1 class="t">Le bonheur se partage.</h1>`+
+ls.map(l=>`<div class="item">${img(l,'sm')}<div><b>${l.n}</b><br><small>${fmt(l.p)} / crêpe</small><div class="qty s"><button data-id="${l.id}" data-d="-1" aria-label="Moins">−</button><b>${l.q}</b><button data-id="${l.id}" data-d="1" aria-label="Plus">+</button></div></div><b class="price">${fmt(l.p*l.q)}</b></div>`).join('')+
+`<a class="link" href="index.html">+ Ajouter une autre crêpe</a><h2 class="h2">Comment vous régaler ?</h2>
+<div class="two">
+    <button class="opt ${m==='livraison'?'on':''}" data-m="livraison">
+        <b>Livraison via Yango</b>
+        <small>30–45 min</small>
+    </button>
+    <button class="opt ${m==='retrait'?'on':''}" data-m="retrait">
+        <b>Retrait sur place</b>
+        <small>Gratuit · point de retrait à confirmer</small>
+    </button>
+</div>
+${m==='livraison' ? `
+<div class="field">
+    <label for="commune">Choisissez votre commune</label>
+    <select id="commune" data-lieu>
+        <option value="">-- Sélectionner une commune --</option>
+        <option value="Bingerville" ${lieu==='Bingerville'?'selected':''}>Bingerville — 2 500 F CFA</option>
+        <option value="Cocody" ${lieu==='Cocody'?'selected':''}>Cocody — 1 500 F CFA</option>
+        <option value="Yopougon" ${lieu==='Yopougon'?'selected':''}>Yopougon — 1 500 F CFA</option>
+        <option value="Marcory" ${lieu==='Marcory'?'selected':''}>Marcory — 2 000 F CFA</option>
+        <option value="Autres" ${lieu==='Autres'?'selected':''}>Autres communes — 2 500 F CFA</option>
+    </select>
+</div>
+` : ''}
+
+<div class="sum">
+    <div class="row">
+        <span>${n} crêpe${n > 1 ? 's' : ''}</span>
+        <span>${fmt(sub())}</span>
+    </div>
+
+    ${m === 'livraison' ? `
+        <div class="row">
+            <span>Livraison${lieu ? ' · ' + lieu : ''}</span>
+            <span>${frais === null ? 'À sélectionner' : fmt(frais)}</span>
+        </div>
+    ` : ''}
+
+    <div class="row tot">
+        <span>Total à payer</span>
+        <b>${fmt(total())}</b>
+    </div>
+</div>
+
+<button class="btn full" data-go>${m==='livraison'?'Continuer vers Wave':'Réserver mon retrait'}</button><p class="note">${m==='livraison'?'Votre adresse sera demandée après le paiement réussi.':'Aucun paiement maintenant : vous réglez au retrait.'}</p>`}
+
+document.addEventListener('change', e => {
+    if (e.target.matches('[data-lieu]')) {
+        put('lieuLivraison', e.target.value);
+        draw();
+    }
+});
+
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+if(d.d){setQty(d.id,(cart()[d.id]||0)+ +d.d);draw()}
+if(d.m){put('mode',d.m);draw()}
+
+if ('go' in d) {
+    if (mode() === 'livraison') {
+        if (FEE() === null) {
+            alert('Veuillez sélectionner votre commune.');
+            return;
+        }
+        location = 'paiement.html';
+    } else {
+        put('resa', cart());
+        put('rday', 0);
+        location = 'reservation.html';
+    }
+}
+
+});
+
+// Affichage immédiat, puis mise à jour dès que les prix Supabase sont chargés
+draw();
+prixPrets.then(draw);
+</script>
+</body>
+</html>

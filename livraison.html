@@ -1,0 +1,16 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Livraison · CHEZSEPHO.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500&display=swap"><link rel="stylesheet" href="style.css"></head><body><main id="app"></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="app.js"></script><script>
+const p=get('paid',null);
+if(!p){$('#app').innerHTML=empty('Votre livraison')}else{
+$('#app').innerHTML=head('Votre livraison','2/2')+`<div class="ok"><b>Paiement réussi !</b><small>${fmt(p.amount)} payés via Wave · ${p.oid}</small></div>
+<h1 class="t">Et maintenant, où vous livrer à Abidjan ?</h1><p class="mut">Votre paiement est confirmé. Ajoutez votre localisation pour lancer la livraison.</p>
+<button class="btn alt full" id="geo">Utiliser ma position actuelle</button><p id="gm" class="mut"></p>
+<label>Commune<input id="com" placeholder="Ex : Cocody"></label><label>Quartier et repère pour le livreur<input id="qua" placeholder="Quartier, rue, repère…"></label>
+<p class="mut" style="margin-top:12px">Contact : ${p.tel}</p><p id="err" class="err" role="alert"></p>
+<button class="btn full" id="ok">Confirmer mon adresse de livraison</button><p class="note">Livraison sous 30–45 min après validation de l’adresse. Aucun paiement supplémentaire.</p>`;
+$('#geo').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(g=>{put('pos',[g.coords.latitude,g.coords.longitude]);$('#gm').textContent='Position enregistrée.'},()=>{$('#gm').textContent='Position indisponible. Remplissez la commune et le quartier.'}):0;
+$('#ok').onclick=async()=>{const c=$('#com').value.trim(),q=$('#qua').value.trim();
+if(!c||!q){$('#err').textContent='Indiquez la commune et le quartier pour que le livreur vous trouve.';return}
+if(sb&&p.id){try{await ensureAuth();const g=get('pos',[null,null]);const{error}=await sb.rpc('enregistrer_livraison',{p_commande:p.id,p_commune:c,p_quartier:q,p_latitude:g[0],p_longitude:g[1]});if(error)throw error}catch(x){$('#err').textContent=x.message;return}}
+put('adresse',{c,q});localStorage.removeItem('cart');localStorage.removeItem('paid');localStorage.removeItem('oid');
+$('#app').innerHTML=`<h1 class="t">Livraison lancée.</h1><p class="mut">Le livreur arrive à ${q}, ${c}, sous 30–45 min.</p><a class="btn full" href="index.html">Retour à la carte</a>`}}
+</script></body></html>

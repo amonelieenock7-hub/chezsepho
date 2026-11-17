@@ -1,0 +1,16 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Détail · CHEZSEPHO.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500&display=swap"><link rel="stylesheet" href="style.css"></head><body><main id="app"></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="app.js"></script><script>
+let c,q=1;
+function draw(){$('#app').innerHTML=`${head(c.n)}${img(c,'big')}<h1 class="t">${c.n}</h1><p class="price big">${fmt(c.p)}</p><p class="mut">${c.d}. Une allergie ? Signalez-la avant de commander.</p>
+<div class="qty-row"><div><small>Pour les gourmands</small><br><b class="lg">${fmt(c.p*q)}</b></div><div class="qty"><button data-q="-1" aria-label="Moins">−</button><b>${q}</b><button data-q="1" aria-label="Plus">+</button></div></div>
+<button class="btn full" data-go="cmd">Commander · ${fmt(c.p*q)}</button><button class="btn alt full" data-go="res">Réserver pour demain</button>
+<p class="note">Commande : paiement Wave, puis adresse de livraison. Réservation : paiement au retrait, via Wave.</p>`}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+if(d.q){q=Math.max(1,q+ +d.q);draw()}
+if(d.go==='cmd'){setQty(c.id,(cart()[c.id]||0)+q);location='panier.html'}
+if(d.go==='res'){put('resa',{[c.id]:q});put('rday',1);location='reservation.html'}});
+
+// Affichage immédiat si le produit est connu, puis mise à jour avec les prix Supabase
+const pid=new URLSearchParams(location.search).get('id');
+if(find(pid)){c=find(pid);draw()}
+prixPrets.then(()=>{c=find(pid)||CREPES[0];draw()});
+</script></body></html>

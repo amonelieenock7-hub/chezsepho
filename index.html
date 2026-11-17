@@ -1,0 +1,17 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Accueil · CHEZSEPHO.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500&display=swap"><link rel="stylesheet" href="style.css"></head><body><main id="app"></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="app.js"></script><script>
+let f='all';
+function draw(){
+$('#app').innerHTML=`<div class="top"><div><div class="brand">CHEZSEPHO.</div><small class="mut">Vos crêpes de Yop City</small></div><a class="cartb" href="panier.html" aria-label="Panier">${count()}</a></div>
+<h1 class="t">Le bonheur, tout chaud.</h1><p class="mut">Réservez pour un retrait, sans payer maintenant. Achetez avec Wave pour vous faire livrer.</p>
+<div class="chips">${[['all','Toutes'],['sucre','Sucrées'],['sale','Salées']].map(x=>`<button class="chip ${f===x[0]?'on':''}" data-f="${x[0]}">${x[1]}</button>`).join('')}</div>
+<div class="grid">${CREPES.filter(c=>f==='all'||c.t===f).map(c=>`<article class="card"><a href="detail.html?id=${c.id}">${img(c)}<h3>${c.n}</h3></a><small>${c.d}</small><b class="price">${fmt(c.p)}</b><div class="two"><button class="btn alt sm" data-r="${c.id}">Réserver</button><button class="btn sm" data-a="${c.id}">Acheter</button></div></article>`).join('')}</div>
+<nav class="tabs"><a class="on" href="index.html">À la carte</a><a href="panier.html">Panier</a><a href="reservation.html">Réservations</a></nav>`}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+if(d.f){f=d.f;draw()}
+if(d.a){setQty(d.a,(cart()[d.a]||0)+1);location='panier.html'}
+if(d.r){put('resa',{[d.r]:1});put('rday',0);location='reservation.html'}});
+
+// Affichage immédiat, puis mise à jour dès que les prix Supabase sont chargés
+draw();
+prixPrets.then(draw);
+</script></body></html>

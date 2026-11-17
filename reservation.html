@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Réservation · CHEZSEPHO.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script src="app.js"></script>
+<script>
+let r=[],T=0,day=get('rday',0),slot='18:00',done=null;
+const dt=o=>{const d=new Date();d.setDate(d.getDate()+o);return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})};
+const end=s=>{const[h,m]=s.split(':').map(Number),t=h*60+m+15;return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+function draw(){if(!r.length){$('#app').innerHTML=empty('Réservation');return}
+if(done){$('#app').innerHTML=head('Réservation · Retrait confirmé')+`<h1 class="t">Votre pause gourmande vous attend.</h1><div class="tk"><div class="ok"><b>Réservation confirmée</b><small>Votre ticket : ${done}</small></div><span class="badge">Réservée · non payée</span><div style="margin:10px 0">${list(r)}</div><div class="row"><span>${day?'Demain':'Aujourd’hui'} (${dt(day)}), de ${slot} à ${end(slot)}</span></div><small>CHEZSEPHO. · point de retrait à confirmer</small><div class="row tot"><span>À payer au retrait</span><b>${fmt(T)}</b></div><small>Aucun montant débité. Paiement via Wave uniquement au retrait.</small></div><a class="btn full" href="index.html">Retour à la carte</a>`;return}
+$('#app').innerHTML=head('Réservation · Retrait')+`<h1 class="t">Votre pause gourmande vous attend.</h1><p class="mut">Choisissez votre créneau. Vos crêpes seront préparées juste avant votre arrivée.</p>
+<h2 class="h2">Jour de retrait</h2><div class="two">${['Aujourd’hui','Demain'].map((x,i)=>`<button class="chip slot ${day===i?'on':''}" data-day="${i}">${x} · ${dt(i)}</button>`).join('')}</div>
+<h2 class="h2">Créneau de retrait</h2><div class="slots">${['17:30','18:00','18:30','19:00'].map(s=>`<button class="chip slot ${slot===s?'on':''}" data-s="${s}">${s}</button>`).join('')}</div>
+<div class="sum">${list(r)}<div class="row tot"><span>À payer au retrait</span><b>${fmt(T)}</b></div></div><p id="err" class="err" role="alert"></p><button class="btn full" data-ok href="">Confirmer ma réservation</button><p class="note">Aucun montant débité. Paiement via Wave uniquement au retrait.</p>`}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+if(d.day){day=+d.day;draw()}if(d.s){slot=d.s;draw()}
+if('ok' in d){if(sb){t.disabled=true;try{await ensureAuth();const{data,error}=await sb.rpc('creer_reservation',{p_items:items(r),p_jour:ymd(day),p_creneau:slot});if(error)throw error;done=data.numero}catch(x){$('#err').textContent=x.message;t.disabled=false;return}}else{done='R-'+(1000+Math.floor(Math.random()*9000))}draw()}});
+
+// Recalcule les lignes et le total avec les prix actuels
+function recalcul(){
+    r = toLines(get('resa', {}));
+    T = r.reduce((s, l) => s + l.p * l.q, 0);
+}
+
+// Affichage immédiat, puis mise à jour avec les prix Supabase (sauf si la réservation est déjà confirmée)
+recalcul();
+draw();
+prixPrets.then(() => { if (!done) { recalcul(); draw(); } });
+</script>
+</body>
+</html>
