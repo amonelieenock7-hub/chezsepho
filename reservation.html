@@ -14,8 +14,6 @@
 <script src="supabase-config.js"></script>
 <script src="app.js"></script>
 <script>
-// Mets ici le MÊME identifiant marchand Wave que dans paiement.html
-const WAVE_MERCHANT = "M_ci_JEXThzuvMlTJ";
 const WHATSAPP = "2250711336992";
 
 let r = [], T = 0, day = get('rday', 0), slot = '18:00', done = null, nomClient = '';
@@ -24,7 +22,7 @@ let enCours = get('resaEnCours', null);   // réservation envoyée vers Wave, en
 const dt = o => { const d = new Date(); d.setDate(d.getDate() + o); return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) };
 const end = s => { const [h, m] = s.split(':').map(Number), t = h * 60 + m + 15; return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') };
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-const waveLien = S => 'https://pay.wave.com/m/' + WAVE_MERCHANT + '/c/ci/?amount=' + Math.round(S.T);
+const waveLien = S => 'https://pay.wave.com/m/' + WAVE_ID + '/c/ci/?amount=' + Math.round(S.T);
 const quand = S => S.jourLabel + ' (' + S.date + '), de ' + S.slot + ' à ' + S.fin;
 
 function recalcul() {
