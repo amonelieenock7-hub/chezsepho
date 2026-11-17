@@ -122,7 +122,7 @@ function draw() {
         <input id="adresse" type="text" autocomplete="street-address" placeholder="Quartier, rue, repère (ex : près de la pharmacie)" value="${esc(adresseClient)}">
 
         <div class="sum">
-            <b>Votre commande · ${orderId()}</b>
+            <b>Votre commande</b>
             ${list(ls)}
             <div class="row"><span>Livraison · ${commune}</span><b>${fmt(frais)}</b></div>
             <div class="row tot"><span>Total</span><b>${fmt(A)}</b></div>
@@ -140,11 +140,16 @@ document.addEventListener('input', e => {
     if (e.target.id === 'adresse') adresseClient = e.target.value;
 });
 
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
     const a = e.target.closest('a[data-cancel]');
     if (a) {
         e.preventDefault();
+        const ancienne = enCours;
         try { localStorage.removeItem('commandeEnCours') } catch (x) {}
+        try { localStorage.removeItem('oid') } catch (x) {}
+        if (ancienne && ancienne.id && typeof sb !== 'undefined' && sb) {
+            try { await sb.rpc('annuler_commande', { p_id: ancienne.id }); } catch (x) {}
+        }
         enCours = null;
         draw();
         return;
@@ -170,11 +175,42 @@ document.addEventListener('click', e => {
         nomClient = nom; telClient = tel; adresseClient = adresse;
 
         const frais = FEE();
+        const commune = lieuLivraison();
+        const lignes = lines().map(l => ({ n: l.n, q: l.q, p: l.p, id: l.dbId || l.id }));
+        t.disabled = true;
+        const libelle = t.textContent;
+        t.textContent = 'Enregistrement de la commande…';
+
+        let enr = { numero: orderId(), id: null, frais: frais, T: sub() + frais };
+
+        try {
+            await prixPrets;
+            if (typeof sb !== 'undefined' && sb) {
+                await ensureAuth();
+                const { data, error } = await sb.rpc('passer_commande', {
+                    p_items: lignes.map(l => ({ produit_id: l.id, quantite: l.q })),
+                    p_nom: nom,
+                    p_telephone: tel,
+                    p_commune: commune,
+                    p_quartier: adresse
+                });
+                if (error) throw error;
+                // Le serveur recalcule le total avec les prix de Supabase : c'est lui qui fait foi
+                enr = { numero: data.numero, id: data.id, frais: data.frais_livraison, T: data.total };
+            }
+        } catch (x) {
+            err.textContent = x.message || 'Impossible d’enregistrer la commande. Réessayez.';
+            err.style.display = 'block';
+            t.disabled = false;
+            t.textContent = libelle;
+            return;
+        }
+
         enCours = {
-            numero: orderId(), nom, tel, adresse,
-            commune: lieuLivraison(), frais,
-            T: sub() + frais,
-            lignes: lines().map(l => ({ n: l.n, q: l.q, p: l.p }))
+            numero: enr.numero, id: enr.id, nom, tel, adresse,
+            commune: commune, frais: enr.frais,
+            T: enr.T,
+            lignes: lignes
         };
         put('commandeEnCours', enCours);
         draw();   // si le client revient sans recharger la page, il voit l'étape 2
