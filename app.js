@@ -1,4 +1,10 @@
 // ============================================================
+// WAVE : identifiant marchand (UN SEUL endroit à modifier)
+// Dans ton lien https://pay.wave.com/m/M_ci_AbCd1234xyz/c/ci/ c'est la partie entre /m/ et /c/
+// ============================================================
+const WAVE_ID = "M_ci_JEXThzuvMlTJ";
+
+// ============================================================
 // SUPABASE : les prix viennent de la base
 // (noms uniques pour ne pas entrer en conflit avec supabase-config.js)
 // ============================================================
