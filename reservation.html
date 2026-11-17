@@ -90,7 +90,7 @@ function draw() {
         <h2 class="h2">Créneau de retrait</h2>
         <div class="slots">${['17:30', '18:00', '18:30', '19:00'].map(s => `<button class="chip slot ${slot === s ? 'on' : ''}" data-s="${s}">${s}</button>`).join('')}</div>
         <h2 class="h2">Votre nom</h2>
-        <input id="nom" type="text" autocomplete="name" placeholder="Ex : Sepho" value="${esc(nomClient)}">
+        <input id="nom" type="text" autocomplete="name" placeholder="Ex : Jean Dupont" value="${esc(nomClient)}">
         <div class="sum">${list(r)}<div class="row tot"><span>Total à payer</span><b>${fmt(T)}</b></div></div>
         <p id="err" class="err" role="alert"></p>
         <button class="btn wavebtn full" data-pay>Payer ${fmt(T)} avec Wave</button>
