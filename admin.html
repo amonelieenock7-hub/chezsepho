@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin · CHEZSEPHO.</title>
+<style>
+:root{--br:#43271a;--cr:#fff8ec;--or:#d97a1e;--ok:#1f7a4d;--tx:#2b2118;--mu:#7a6a58}
+*{box-sizing:border-box}body{margin:0;background:var(--cr);color:var(--tx);font:15px/1.4 Inter,system-ui,sans-serif}
+header{background:var(--br);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+main{max-width:760px;margin:0 auto;padding:14px}h1{font-size:18px;margin:0}
+button,select,input{font:inherit}button{background:var(--or);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:600;cursor:pointer}
+button.g{background:#fff;color:var(--br);border:1px solid #eadfce}
+input[type=email],input[type=password]{width:100%;padding:11px;margin:6px 0 12px;border:1px solid #eadfce;border-radius:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.k{background:#fff;border-radius:14px;padding:12px}.k small{color:var(--mu)}.k b{display:block;font-size:19px}
+.tabs{display:flex;gap:8px;margin:8px 0}.tabs button{background:#fff;color:var(--br);border:1px solid #eadfce}.tabs button.on{background:var(--br);color:#fff}
+.c{background:#fff;border-radius:14px;padding:14px;margin:10px 0;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.top{display:flex;justify-content:space-between;gap:8px}.d{color:var(--mu);font-size:13px}
+.bar{border-radius:10px;padding:8px 12px;margin:8px 0;font-weight:600;background:#fdf0d5;color:#b7791f}
+.bar.v{background:#e3f1e8;color:var(--ok)}.bar.x{background:#eee;color:#777}
+ul{margin:6px 0;padding-left:18px}a{color:var(--or)}
+.v2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid #f0e6d6;padding-top:10px;margin-top:8px}
+.v2 label{display:flex;gap:8px;align-items:center;font-weight:600}.v2 input{width:22px;height:22px}
+select{padding:8px;border-radius:8px;border:1px solid #eadfce;background:#fff}
+.e{color:#b3261e;min-height:20px}.h{display:none}
+</style></head><body>
+<header><h1>CHEZSEPHO. · Tableau de bord</h1><button class="g h" id="out">Déconnexion</button></header>
+<main>
+<section id="login"><h2>Connexion</h2>
+<label>E-mail</label><input id="em" type="email" autocomplete="username">
+<label>Mot de passe</label><input id="pw" type="password" autocomplete="current-password">
+<p class="e" id="le"></p><button id="go">Se connecter</button></section>
+<section id="dash" class="h">
+<div class="grid" id="stats"></div>
+<div class="tabs"><button data-f="attente">À valider</button><button data-f="toutes">Toutes</button><button class="g" id="rf">Actualiser</button></div>
+<p class="e" id="de"></p><div id="list"></div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Math.round(n).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g,' ')+' F CFA';
+const PAYEES=['payee','en_preparation','en_livraison','livree'];
+const LIB={en_attente_paiement:'Validation en attente',payee:'Commande confirmée',en_preparation:'En préparation',en_livraison:'En livraison',livree:'Livrée',annulee:'Annulée'};
+let cmds=[],noms={},couts={},filtre='attente',timer;
+
+const wa=t=>{const d=String(t||'').replace(/\D/g,'');return d.length===10?'225'+d:d};
+const show=(a)=>{$('#login').classList.toggle('h',a);$('#dash').classList.toggle('h',!a);$('#out').classList.toggle('h',!a)};
+
+async function demarrer(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session||session.user.is_anonymous){show(false);return}
+  const {data:ok}=await sb.rpc('est_admin');
+  if(!ok){$('#le').textContent='Ce compte n’est pas administrateur.';await sb.auth.signOut();show(false);return}
+  show(true);await charger();clearInterval(timer);timer=setInterval(charger,30000);
+}
+
+async function charger(){
+  let pr=await sb.from('produits').select('id,nom,cout');
+  if(pr.error)pr=await sb.from('produits').select('id,nom');
+  (pr.data||[]).forEach(p=>{noms[p.id]=p.nom;couts[p.id]=p.cout||0});
+  const {data,error}=await sb.from('commandes')
+   .select('id,numero,statut,nom_client,telephone_wave,sous_total,frais_livraison,total,created_at,commande_lignes(produit_id,quantite,prix_unitaire),livraisons(commune,quartier)')
+   .order('created_at',{ascending:false}).limit(300);
+  $('#de').textContent=error?error.message:'';
+  if(!error){cmds=data;rendre()}
+}
+
+function rendre(){
+  const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));d.setHours(0,0,0,0);
+  let enc=0,benef=0,nb=0;
+  cmds.filter(c=>new Date(c.created_at)>=d&&PAYEES.includes(c.statut)).forEach(c=>{
+    nb++;enc+=c.total;
+    (c.commande_lignes||[]).forEach(l=>{benef+=(l.prix_unitaire-(couts[l.produit_id]||0))*l.quantite});
+  });
+  const att=cmds.filter(c=>c.statut==='en_attente_paiement').length;
+  $('#stats').innerHTML=
+   `<div class="k"><small>À valider</small><b>${att}</b></div>`+
+   `<div class="k"><small>Commandes validées (semaine)</small><b>${nb}</b></div>`+
+   `<div class="k"><small>Encaissé cette semaine</small><b>${fmt(enc)}</b></div>`+
+   `<div class="k"><small>Bénéfice crêpes (semaine)</small><b>${fmt(benef)}</b></div>`;
+  document.querySelectorAll('.tabs [data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===filtre));
+  const l=cmds.filter(c=>filtre==='toutes'||c.statut==='en_attente_paiement');
+  $('#list').innerHTML=l.length?l.map(carte).join(''):'<p class="d">Aucune commande ici.</p>';
+}
+
+function carte(c){
+  const lv=Array.isArray(c.livraisons)?c.livraisons[0]:c.livraisons;
+  const v=PAYEES.includes(c.statut),x=c.statut==='annulee';
+  return `<article class="c"><div class="top"><b>${esc(c.numero)} · ${esc(c.nom_client||'Client')}</b><span class="d">${new Date(c.created_at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></div>
+  <div class="bar ${v?'v':x?'x':''}">${v?'✓ ':x?'':'⏳ '}${LIB[c.statut]||esc(c.statut)}</div>
+  <div>${esc(c.telephone_wave)} · <a href="https://wa.me/${wa(c.telephone_wave)}" target="_blank" rel="noopener">WhatsApp</a></div>
+  <div class="d">${lv?esc(lv.commune)+' · '+esc(lv.quartier):'Adresse non renseignée'}</div>
+  <ul>${(c.commande_lignes||[]).map(l=>`<li>${l.quantite} × ${esc(noms[l.produit_id]||l.produit_id)} — ${fmt(l.prix_unitaire*l.quantite)}</li>`).join('')}</ul>
+  <div><b>Total à recevoir sur Wave : ${fmt(c.total)}</b> <span class="d">(livraison ${fmt(c.frais_livraison||0)})</span></div>
+  <div class="v2"><label><input type="checkbox" data-v="${c.id}" ${v?'checked':''} ${x?'disabled':''}> Paiement Wave reçu : valider</label>
+  <select data-s="${c.id}">${Object.keys(LIB).map(k=>`<option value="${k}" ${k===c.statut?'selected':''}>${LIB[k]}</option>`).join('')}</select></div></article>`;
+}
+
+async function maj(id,statut){
+  const {error}=await sb.from('commandes').update({statut}).eq('id',id);
+  if(error)$('#de').textContent=error.message;
+  await charger();
+}
+
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.v){
+    if(!t.checked&&!confirm('Remettre cette commande en attente de validation ?')){t.checked=true;return}
+    maj(t.dataset.v,t.checked?'payee':'en_attente_paiement');
+  }
+  if(t.dataset.s)maj(t.dataset.s,t.value);
+});
+document.addEventListener('click',e=>{
+  const f=e.target.dataset&&e.target.dataset.f;if(f){filtre=f;rendre()}
+});
+$('#rf').onclick=charger;
+$('#out').onclick=async()=>{clearInterval(timer);await sb.auth.signOut();show(false)};
+$('#go').onclick=async()=>{
+  $('#le').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});
+  if(error){$('#le').textContent='E-mail ou mot de passe incorrect.';return}
+  demarrer();
+};
+demarrer();
+})();
+</script></body></html>
