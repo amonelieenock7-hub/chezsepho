@@ -20,6 +20,32 @@ let enCours = get('commandeEnCours', null);   // commande envoyée vers Wave, en
 let done = null;
 let nomClient = '', telClient = '', adresseClient = '';
 
+// Suivi du statut : Sepho valide dans son tableau de bord, le client le voit ici
+const ETATS = {
+    en_attente_paiement: ['⏳', 'Validation en attente', 'Sepho vérifie votre paiement Wave.', '#b7791f', '#fdf0d5'],
+    payee: ['✓', 'Commande confirmée', 'Votre paiement est validé. Merci !', '#1f7a4d', '#e3f1e8'],
+    en_preparation: ['✓', 'Commande en préparation', 'Vos crêpes sont en cours de préparation.', '#1f7a4d', '#e3f1e8'],
+    en_livraison: ['✓', 'Commande en livraison', 'Votre livreur est en route.', '#1f7a4d', '#e3f1e8'],
+    livree: ['✓', 'Commande livrée', 'Bon appétit !', '#1f7a4d', '#e3f1e8'],
+    annulee: ['✕', 'Commande annulée', 'Contactez Sepho sur WhatsApp si besoin.', '#b3261e', '#fbe4e2']
+};
+let statut = 'en_attente_paiement', timer = null;
+const barre = st => { const e = ETATS[st] || ETATS.en_attente_paiement;
+    return `<div style="background:${e[4]};color:${e[3]};border-radius:12px;padding:12px 14px;margin:12px 0;font-weight:600">${e[0]} ${e[1]}<br><small style="font-weight:400">${e[2]}</small></div>`; };
+
+async function verifierStatut(S) {
+    if (!S || !S.id || typeof sb === 'undefined' || !sb) return;
+    try {
+        await ensureAuth();
+        const { data } = await sb.from('commandes').select('statut').eq('id', S.id).maybeSingle();
+        if (data && data.statut !== statut) { statut = data.statut; draw(); }
+    } catch (x) {}
+}
+function suivre(S) { clearInterval(timer); verifierStatut(S); timer = setInterval(() => verifierStatut(S), 10000); }
+
+// Panier vide mais commande déjà envoyée : on réaffiche son suivi
+if (!enCours && !lines().length) { const s = get('commandeSuivie', null); if (s) done = s; }
+
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const waveLien = S => 'https://pay.wave.com/m/' + WAVE_ID + '/c/ci/?amount=' + Math.round(S.T);
 
@@ -44,7 +70,7 @@ function draw() {
             `<h1 class="t">Merci ${esc(S.nom)} !</h1>
             <div class="tk">
                 <div class="ok"><b>Commande envoyée à Sepho</b><small>Votre numéro : ${S.numero}</small></div>
-                <span class="badge">Paiement Wave · en cours de vérification</span>
+                ${barre(statut)}
                 <div style="margin:10px 0">${list(S.lignes)}</div>
                 <div class="row"><span>Livraison · ${esc(S.commune)}</span><b>${fmt(S.frais)}</b></div>
                 <div class="row"><span>Adresse : ${esc(S.adresse)}</span></div>
@@ -64,6 +90,7 @@ function draw() {
         $('#app').innerHTML = head('Paiement') +
             `<h1 class="t">Une dernière étape.</h1>
             <p class="mut">Avez-vous payé sur Wave ? Si oui, envoyez votre commande à Sepho pour qu'elle soit confirmée.</p>
+            ${statut !== 'en_attente_paiement' ? barre(statut) : ''}
             <div class="sum">
                 <b>Commande · ${S.numero}</b>
                 ${list(S.lignes)}
@@ -215,6 +242,7 @@ document.addEventListener('click', async e => {
             lignes: lignes
         };
         put('commandeEnCours', enCours);
+        suivre(enCours);
         draw();   // si le client revient sans recharger la page, il voit l'étape 2
         window.location.href = waveLien(enCours);
     }
@@ -224,6 +252,8 @@ document.addEventListener('click', async e => {
         const S = enCours;
         window.open('https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(messageWhatsApp(S)), '_blank');
         done = S;
+        put('commandeSuivie', S);
+        suivre(S);
         enCours = null;
         try { localStorage.removeItem('commandeEnCours'); localStorage.removeItem('oid'); } catch (x) {}
         put('cart', {});
@@ -240,6 +270,7 @@ window.addEventListener('pageshow', () => {
 
 // Affichage immédiat, puis mise à jour avec les prix Supabase
 draw();
+if (done) suivre(done); else if (enCours) suivre(enCours);
 prixPrets.then(() => { if (!done && !enCours) draw(); });
 </script>
 </body>
